@@ -13,7 +13,9 @@ app.use(express.static('public'));
 
 const {
     GEOCODE_API_KEY,
-    WEATHER_API_KEY
+    WEATHER_API_KEY,
+    HIKING_API_KEY,
+    YELP_API_KEY,
 
 } = process.env;
 
@@ -73,9 +75,62 @@ app.get('/weather', async (req, res) => {
     }
 }); 
 
+async function getTrails(lat, long) {
+    const trailData = await request.get(`https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${long}&key=${HIKING_API_KEY}`)
+    const mungedTrailData = trailData.body.trails;
+    return mungedTrailData;
+}
 
+app.get('/trails', async(req, res) => {
+    try {
+        const userLat = req.query.latitude;
+        const userLong = req.query.longitude;
+        const response = await getTrails(userLat, userLong)
+        res.json(response)
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+})
 
+async function getReviews(lat, long) {
+    const reviewData = await request.get(`https://api.yelp.com/v3/businesses/search?latitude=${lat}&longitude=${long}`).set('Authorization', `Bearer ${YELP_API_KEY}`);
 
+    const mungedReviewlData = reviewData.body.businesses.map((review) => {
+        return {
+            "name": review.name,
+            "image_url": review.image_url,
+            "price": review.price,
+            "rating": review.rating,
+            "url": review.url,
+        }
+    });
+
+    return mungedReviewlData;
+}
+
+app.get('/reviews', async(req, res) => {
+    try {
+        const userLat = req.query.latitude;
+        const userLong = req.query.longitude;
+        const response = await getReviews(userLat, userLong)
+        res.json(response)
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+})
+
+app.get('/events', async(req, res) => {
+    try {
+        res.json([{
+            link: 'www.gohere.com',
+            name: 'Patricks Cool Event',
+            event_date: '8/31/2020',
+            summary: 'Cool Virtural Event!',
+        }]);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+})
 
 
 app.listen(port, () => {
